@@ -1,3 +1,7 @@
+import threading
+import tkinter as tk
+from tkinter import messagebox
+import photo_manager
 import cv2
 import dlib
 import numpy as np
@@ -6,15 +10,31 @@ import requests
 import tempfile
 import os
 
+# Глобальные переменные
 known_face_descriptors = None
 known_face_names = None
 
+# Dlib модели
 detector = dlib.get_frontal_face_detector()
 shape_predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 face_rec_model = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
 
+# Телеграмм токен и ID
 TELEGRAM_BOT_TOKEN = "6928026985:AAE0-ZF5IgKgUtj4Ra-Kjct43iDXTGrn8BA"
 TELEGRAM_CHAT_ID = "6202867001"
+
+def main():
+    root = tk.Tk()
+    root.title("Главное меню проекта")
+    root.geometry("300x200")
+    
+    delete_photo_button = tk.Button(root, text="Удалить фото", command=photo_manager.delete_photo)
+    delete_photo_button.pack(pady=10)
+    
+    add_photo_button = tk.Button(root, text="Добавить фото", command=photo_manager.add_photo)
+    add_photo_button.pack(pady=10)
+    
+    root.mainloop()
 
 def load_known_faces():
     global known_face_descriptors, known_face_names
@@ -65,15 +85,13 @@ def recognize_faces_and_access(img_rgb, frame):
             recognized_name = known_face_names[min_distance_idx]
             print(f"Распознано лицо: {recognized_name} с расстоянием {min_distance}")
         else:
-            чыprint("Неизвестное лицо обнаружено. Отправка уведомления...")
+            print("Неизвестное лицо обнаружено. Отправка уведомления...")
             unknown_face_img = extract_unknown_face(frame, face)
             if unknown_face_img is not None:
                 send_telegram_notification(unknown_face_img)
                 delete_temp_image(unknown_face_img)
             else:
                 print("Ошибка: Извлечение неизвестного лица не удалось")
-
-
 
 def extract_unknown_face(frame, face):
     x, y, w, h = face.left(), face.top(), face.width(), face.height()
@@ -84,8 +102,6 @@ def extract_unknown_face(frame, face):
         print("Ошибка: Невозможно извлечь лицо, размеры равны нулю")
         return None
 
-
-
 def send_telegram_notification(image):
     if image is None:
         print("Ошибка: Изображение для отправки в Telegram пустое или невалидно")
@@ -95,8 +111,6 @@ def send_telegram_notification(image):
     
     temp_image_path = tempfile.mktemp(suffix='.jpg')
     cv2.imwrite(temp_image_path, image)
-    
-
     
     files = {'photo': open(temp_image_path, 'rb')}
     data = {
@@ -121,4 +135,12 @@ def delete_temp_image(temp_image_path):
 
 if __name__ == "__main__":
     load_known_faces()
-    process_camera_frame()
+    
+    gui_thread = threading.Thread(target=main)
+    camera_thread = threading.Thread(target=process_camera_frame)
+    
+    gui_thread.start()
+    camera_thread.start()
+    
+    gui_thread.join()
+    camera_thread.join()
