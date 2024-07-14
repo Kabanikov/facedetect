@@ -101,7 +101,7 @@ def send_telegram_notification(image):
     files = {'photo': open(temp_image_path, 'rb')}
     data = {
         'chat_id': TELEGRAM_CHAT_ID,
-        'caption': 'Обнаружено неизвестное лицо!'
+        'caption': 'Обнаружено неизвестное лицо! Отправляем уведомление.'
     }
     
     try:
