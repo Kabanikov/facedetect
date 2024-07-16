@@ -17,19 +17,22 @@ dbx = None
 detector = dlib.get_frontal_face_detector()
 shape_predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 face_rec_model = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
-TELEGRAM_BOT_TOKEN = "token here"
-TELEGRAM_CHAT_ID = "token here"
-DROPBOX_ACCESS_TOKEN = 'token here'
+TELEGRAM_BOT_TOKEN = 'your token'
+TELEGRAM_CHAT_ID = 'your token'
+DROPBOX_ACCESS_TOKEN = 'your token'
 
 def main():
+    global dbx
+    authenticate_dropbox()
+    
     root = tk.Tk()
     root.title("Главное меню проекта")
     root.geometry("300x200")
     
-    delete_photo_button = tk.Button(root, text="Удалить фото", command=photo_manager.delete_photo)
+    delete_photo_button = tk.Button(root, text="Удалить фото", command=lambda: photo_manager.delete_photo(dbx))
     delete_photo_button.pack(pady=10)
     
-    add_photo_button = tk.Button(root, text="Добавить фото", command=photo_manager.add_photo)
+    add_photo_button = tk.Button(root, text="Добавить фото", command=lambda: photo_manager.add_photo(dbx))
     add_photo_button.pack(pady=10)
     
     root.mainloop()
