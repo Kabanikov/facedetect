@@ -9,16 +9,17 @@ import time
 import requests
 import tempfile
 import os
+import dropbox
 
 known_face_descriptors = None
 known_face_names = None
-
+dbx = None
 detector = dlib.get_frontal_face_detector()
 shape_predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 face_rec_model = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
-
-TELEGRAM_BOT_TOKEN = "6928026985:AAE0-ZF5IgKgUtj4Ra-Kjct43iDXTGrn8BA"
-TELEGRAM_CHAT_ID = "6202867001"
+TELEGRAM_BOT_TOKEN = "token here"
+TELEGRAM_CHAT_ID = "token here"
+DROPBOX_ACCESS_TOKEN = 'token here'
 
 def main():
     root = tk.Tk()
@@ -33,15 +34,45 @@ def main():
     
     root.mainloop()
 
+def authenticate_dropbox():
+    global dbx
+    dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+
+def download_file_from_dropbox(dropbox_path, local_path):
+    global dbx
+    try:
+        with open(local_path, "wb") as f:
+            metadata, res = dbx.files_download(path=dropbox_path)
+            f.write(res.content)
+        print(f"Файл {dropbox_path} успешно загружен из Dropbox в {local_path}")
+    except Exception as e:
+        print(f"Ошибка загрузки файла из Dropbox: {e}")
+
+
+def update_known_faces():
+    while True:
+        download_file_from_dropbox("/known_face_descriptors.npy", "known_face_descriptors.npy")
+        download_file_from_dropbox("/known_face_names.npy", "known_face_names.npy")
+        load_known_faces()
+        time.sleep(30)
+
 def load_known_faces():
     global known_face_descriptors, known_face_names
-    known_face_descriptors = np.load("known_face_descriptors.npy")
-    known_face_names = np.load("known_face_names.npy")
+    try:
+        known_face_descriptors = np.load("known_face_descriptors.npy")
+        known_face_names = np.load("known_face_names.npy")
+        if known_face_descriptors is None or known_face_names is None:
+            raise ValueError("Загруженные данные пусты")
+    except (EOFError, ValueError, FileNotFoundError) as e:
+        print(f"Ошибка загрузки файлов лиц: {e}")
+        known_face_descriptors = None
+        known_face_names = None
+
 
 def process_camera_frame():
     cap = cv2.VideoCapture(0)
     last_recognition_time = 0
-    
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -63,6 +94,8 @@ def process_camera_frame():
     
     cap.release()
     cv2.destroyAllWindows()
+
+    
 
 def recognize_faces_and_access(img_rgb, frame):
     global known_face_descriptors, known_face_names
@@ -132,13 +165,17 @@ def delete_temp_image(temp_image_path):
         print(f"Ошибка при удалении временного файла: {e}")
 
 if __name__ == "__main__":
+    authenticate_dropbox()
     load_known_faces()
     
     gui_thread = threading.Thread(target=main)
     camera_thread = threading.Thread(target=process_camera_frame)
+    update_thread = threading.Thread(target=update_known_faces)
     
     gui_thread.start()
     camera_thread.start()
+    update_thread.start()
     
     gui_thread.join()
     camera_thread.join()
+    update_thread.join()
