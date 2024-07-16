@@ -82,16 +82,17 @@ def update_known_faces():
         all_names = []
 
         for file_path in file_paths:
-            local_path = tempfile.mktemp(suffix='.jpg')
-            download_file_from_dropbox(file_path, local_path)
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                download_file_from_dropbox(file_path, temp_file_path)
 
-            descriptors = extract_face_descriptors(local_path)
-            name = os.path.splitext(os.path.basename(file_path))[0]
+                descriptors = extract_face_descriptors(temp_file_path)
+                name = os.path.splitext(os.path.basename(file_path))[0]
 
-            all_descriptors.extend(descriptors)
-            all_names.extend([name] * len(descriptors))
+                all_descriptors.extend(descriptors)
+                all_names.extend([name] * len(descriptors))
 
-            os.remove(local_path)
+            os.remove(temp_file_path)
 
         if all_descriptors and all_names:
             # Удаление старых npy файлов
@@ -202,8 +203,9 @@ def send_telegram_notification(image):
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     
-    temp_image_path = tempfile.mktemp(suffix='.jpg')
-    cv2.imwrite(temp_image_path, image)
+    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+        temp_image_path = temp_file.name
+        cv2.imwrite(temp_image_path, image)
     
     files = {'photo': open(temp_image_path, 'rb')}
     data = {
@@ -217,6 +219,8 @@ def send_telegram_notification(image):
             print(f"Ошибка отправки изображения в Telegram: {response.status_code}, {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при отправке изображения в Telegram: {e}")
+    finally:
+        delete_temp_image(temp_image_path)
 
 def delete_temp_image(temp_image_path):
     try:
