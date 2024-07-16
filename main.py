@@ -52,6 +52,7 @@ def process_camera_frame():
             break
 
         img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        print(f"Формат изображения: {img_rgb.shape}, тип данных: {img_rgb.dtype}")
 
         current_time = time.time()
         
