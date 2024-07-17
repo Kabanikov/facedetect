@@ -182,25 +182,15 @@ def recognize_faces_and_access(img_rgb, frame):
             else:
                 print("Неизвестное лицо обнаружено. Отправка уведомления...")
                 unknown_face_img = extract_unknown_face(frame, face)
-                if unknown_face_img is not None:
+                if unknown_face_img is not None and unknown_face_img.size > 0:
                     send_telegram_notification(unknown_face_img)
-                    delete_temp_image(unknown_face_img)
                 else:
-                    print("Ошибка: Извлечение неизвестного лица не удалось")
+                    print("Ошибка: Извлечение неизвестного лица не удалось или изображение пустое")
         else:
             print("Известные лица не загружены или пусты.")
 
-def extract_unknown_face(frame, face):
-    x, y, w, h = face.left(), face.top(), face.width(), face.height()
-    if w > 0 and h > 0:
-        face_img = frame[y:y+h, x:x+w]
-        return face_img
-    else:
-        print("Ошибка: Невозможно извлечь лицо, размеры равны нулю")
-        return None
-
 def send_telegram_notification(image):
-    if image is None:
+    if image is None or image.size == 0:
         print("Ошибка: Изображение для отправки в Telegram пустое или невалидно")
         return
 
@@ -210,16 +200,16 @@ def send_telegram_notification(image):
         temp_image_path = temp_file.name
         cv2.imwrite(temp_image_path, image)
     
-    files = {'photo': open(temp_image_path, 'rb')}
-    data = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'caption': 'Обнаружено неизвестное лицо! Отправляем уведомление.'
-    }
-    
     try:
-        response = requests.post(url, files=files, data=data)
-        if response.status_code != 200:
-            print(f"Ошибка отправки изображения в Telegram: {response.status_code}, {response.text}")
+        with open(temp_image_path, 'rb') as file:
+            files = {'photo': file}
+            data = {
+                'chat_id': TELEGRAM_CHAT_ID,
+                'caption': 'Обнаружено неизвестное лицо! Отправляем уведомление.'
+            }
+            response = requests.post(url, files=files, data=data)
+            if response.status_code != 200:
+                print(f"Ошибка отправки изображения в Telegram: {response.status_code}, {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при отправке изображения в Telegram: {e}")
     finally:
@@ -232,6 +222,17 @@ def delete_temp_image(temp_image_path):
             print("Временный файл удален успешно")
     except Exception as e:
         print(f"Ошибка при удалении временного файла: {e}")
+
+
+def extract_unknown_face(frame, face):
+    x, y, w, h = face.left(), face.top(), face.width(), face.height()
+    if w > 0 and h > 0:
+        face_img = frame[y:y+h, x:x+w]
+        return face_img
+    else:
+        print("Ошибка: Невозможно извлечь лицо, размеры равны нулю")
+        return None
+
 
 if __name__ == "__main__":
     authenticate_dropbox()
